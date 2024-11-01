@@ -18,11 +18,13 @@ public class TransactionsInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
-    @Column( nullable = false)
+    @Column(nullable = false)
     private String phoneNumber;
-    @Column(name = "mpesa_code", nullable = false,unique = true)
+    @Column(name = "mpesa_code", nullable = false, unique = true)
     private String code;
-    @Column( nullable = false)
+    @Column(nullable = false)
     private String amount;
     private LocalDateTime date;
+    @Enumerated(EnumType.STRING)
+    private Status status;
 }

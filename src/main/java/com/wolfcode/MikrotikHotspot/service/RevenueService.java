@@ -1,15 +1,11 @@
 package com.wolfcode.MikrotikHotspot.service;
 
-import com.wolfcode.MikrotikHotspot.dto.UserRevenue;
 import com.wolfcode.MikrotikHotspot.repository.HotspotUserInfo;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
-import java.util.List;
 import java.util.Map;
 
 @Service

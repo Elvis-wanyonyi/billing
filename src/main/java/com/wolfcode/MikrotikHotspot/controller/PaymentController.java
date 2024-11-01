@@ -3,6 +3,7 @@ package com.wolfcode.MikrotikHotspot.controller;
 import com.wolfcode.MikrotikHotspot.dto.UserCredentials;
 import com.wolfcode.MikrotikHotspot.dto.payment.*;
 import com.wolfcode.MikrotikHotspot.entity.PaymentSession;
+import com.wolfcode.MikrotikHotspot.entity.Status;
 import com.wolfcode.MikrotikHotspot.entity.TransactionsInfo;
 import com.wolfcode.MikrotikHotspot.repository.PaymentSessionRepository;
 import com.wolfcode.MikrotikHotspot.repository.TransactionRepository;
@@ -12,6 +13,7 @@ import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.text.RandomStringGenerator;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -51,6 +53,9 @@ public class PaymentController {
                 .mac(paymentRequest.getMacAddress())
                 .packageType(paymentRequest.getPackageType())
                 .routerName(paymentRequest.getRouterName())
+                .phoneNumber(paymentRequest.getPhoneNumber())
+                .amount(paymentRequest.getAmount())
+                .status(Status.PENDING)
                 .build();
         paymentSessionRepository.save(paymentSession);
         System.out.println(paymentSession);
@@ -66,25 +71,44 @@ public class PaymentController {
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
-
-
     }
 
-    @PostMapping("/stk-query/{checkoutRequestId}")
-    public ResponseEntity<?> checkStkPushStatus(@PathVariable String checkoutRequestId) {
+    @PostMapping("/stk-query")
+    public ResponseEntity<?> checkStkPushStatus(@RequestParam String checkoutRequestId) {
         StkQueryResponse stkQueryResponse = darajaService.checkStkPushStatus(checkoutRequestId);
+        PaymentSession paymentSession = paymentSessionRepository.findByCheckoutRequestID(checkoutRequestId);
+        try {
+            String transactionRefNo = generateTransactionRefNo();
+            if (stkQueryResponse != null && "0".equals(stkQueryResponse.getResultCode())) {
+                log.info("STK Query successful: {}", stkQueryResponse);
+                TransactionsInfo transactionsInfo = TransactionsInfo.builder()
+                        .code(transactionRefNo)
+                        .phoneNumber(paymentSession.getPhoneNumber())
+                        .amount(paymentSession.getAmount())
+                        .date(LocalDateTime.now())
+                        .status(Status.CONFIRMED)
+                        .build();
+                transactionRepository.save(transactionsInfo);
 
-        if (stkQueryResponse != null) {
-            log.info("Response Code: {}, Description: {}", stkQueryResponse.getResultCode(), stkQueryResponse.getResultDesc());
-        }
+                paymentSession.setStatus(Status.CONFIRMED);
+                paymentSessionRepository.save(paymentSession);
 
-        if (stkQueryResponse != null && "0".equals(stkQueryResponse.getResultCode())) {
-            log.info("STK Query successful: {}", stkQueryResponse);
+                tikController.connectUserWithQuery(checkoutRequestId, paymentSession.getIp(), paymentSession.getMac(),
+                        paymentSession.getPackageType(), paymentSession.getRouterName(),
+                        paymentSession.getPhoneNumber(), paymentSession.getAmount(), transactionRefNo);
 
-            return ResponseEntity.ok(stkQueryResponse);
-        } else {
-            log.error("STK Query failed or returned invalid response.");
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Failed to query STK Push transaction.");
+                log.info("Transaction Details -> Phone: {}, Amount: {}", paymentSession.getPhoneNumber(),
+                        paymentSession.getAmount());
+
+                return ResponseEntity.ok(stkQueryResponse);//user details
+            } else {
+                log.error("STK Query failed or returned invalid response.");
+                paymentSession.setStatus(Status.FAILED);
+                paymentSessionRepository.save(paymentSession);
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Failed to verify payment...");
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
@@ -119,17 +143,18 @@ public class PaymentController {
 
             String checkoutRequestID = stkCallback.getCheckoutRequestID();
             PaymentSession paymentSession = paymentSessionRepository.findByCheckoutRequestID(checkoutRequestID);
+            paymentSession.setStatus(Status.CONFIRMED);
+            paymentSessionRepository.save(paymentSession);
 
-            tikController.connectUser(checkoutRequestID, paymentSession.getIp(), paymentSession.getMac(), paymentSession.getPackageType(),
-                    paymentSession.getRouterName(), phoneNumber, mpesaReceiptNumber, amount);
-
+            tikController.connectUser(checkoutRequestID, paymentSession.getIp(), paymentSession.getMac(),
+                    paymentSession.getPackageType(), paymentSession.getRouterName(),
+                    phoneNumber, mpesaReceiptNumber, amount);
 
             log.info("Transaction Details -> Phone: {}, Amount: {}, Mpesa Receipt: {}", phoneNumber, amount, mpesaReceiptNumber);
 
         } else {
             log.warn("Payment failed with result code: {}", stkCallback.getResultCode());
         }
-
         return ResponseEntity.ok(acknowledgeResponse);
     }
 
@@ -138,9 +163,14 @@ public class PaymentController {
     public UserCredentials getUserDetails(@RequestParam String checkoutRequestID) {
         try {
             return mikrotikService.getUserCredentials(checkoutRequestID);
-        }catch (Exception e) {
-            throw new  IllegalArgumentException("Failed to verify your payment");
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Failed to verify your payment");
         }
     }
 
+    public String generateTransactionRefNo(){
+        return RandomStringGenerator.builder()
+                  .withinRange('a', 'z')
+                  .withinRange(0,9).build().toString();
+    }
 }

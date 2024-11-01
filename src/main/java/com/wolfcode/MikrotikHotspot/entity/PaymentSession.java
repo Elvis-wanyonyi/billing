@@ -1,9 +1,6 @@
 package com.wolfcode.MikrotikHotspot.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -27,5 +24,9 @@ public class PaymentSession {
     private String mac;
     private String packageType;
     private String routerName;
+    private String phoneNumber;
+    private String amount;
+    @Enumerated(EnumType.STRING)
+    private Status status;
 
 }

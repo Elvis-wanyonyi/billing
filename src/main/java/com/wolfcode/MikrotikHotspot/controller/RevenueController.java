@@ -1,6 +1,5 @@
 package com.wolfcode.MikrotikHotspot.controller;
 
-import com.wolfcode.MikrotikHotspot.dto.UserRevenue;
 import com.wolfcode.MikrotikHotspot.service.RevenueService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -12,8 +11,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
-import java.util.List;
 import java.util.Map;
 
 @RestController

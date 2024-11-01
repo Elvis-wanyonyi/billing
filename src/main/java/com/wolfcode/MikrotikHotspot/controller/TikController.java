@@ -25,7 +25,6 @@ public class TikController {
 
 
     @PostMapping("/connect")
-
     public String connectUser(@RequestParam String ipAddress,
                               @RequestParam String packageType,
                               @RequestParam String macAddress,
@@ -35,10 +34,25 @@ public class TikController {
             mikrotikService.connectUser(ipAddress, macAddress, packageType,
                     phoneNumber, mpesaReceiptNumber, amount, routerName, checkoutRequestID);
 
-
             System.out.println("Connecting user: " + phoneNumber);
             return "Connecting user....";
 
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    @PostMapping("/connect-query")
+    public String connectUserWithQuery( String checkoutRequestID, @RequestParam String ipAddress, @RequestParam String macAddress,
+                                       @RequestParam String packageType, @RequestParam String routerName,
+                                       String phoneNumber, String amount, String transactionRefNo) {
+        try {
+            mikrotikService.connectUserWithQuery(ipAddress, macAddress, packageType,
+                    phoneNumber, amount, routerName, checkoutRequestID,transactionRefNo);
+
+            System.out.println("Connecting user: " + phoneNumber);
+            return "Connecting user....";
         } catch (Exception e) {
             e.printStackTrace();
             return null;

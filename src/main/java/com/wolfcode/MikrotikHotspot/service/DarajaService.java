@@ -114,7 +114,6 @@ public class DarajaService {
 
         RequestBody body = RequestBody.create(JSON_MEDIA_TYPE,
                 Objects.requireNonNull(HelperUtility.toJson(stkQueryRequest)));
-        log.info("STK Query Request: {}", HelperUtility.toJson(stkQueryRequest));
 
         Request request = new Request.Builder()
                 .url(mpesaConfig.getStkPushQueryUrl())
@@ -125,7 +124,7 @@ public class DarajaService {
         try {
             Response response = okHttpClient.newCall(request).execute();
             assert response.body() != null;
-            //log.info("Response: {}", response.body().string());
+
             return objectMapper.readValue(response.body().string(), StkQueryResponse.class);
         } catch (IOException e) {
             log.error("STK query failed ->>>> {}", e.getLocalizedMessage());

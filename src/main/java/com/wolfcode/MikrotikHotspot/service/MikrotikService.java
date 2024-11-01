@@ -1,6 +1,5 @@
 package com.wolfcode.MikrotikHotspot.service;
 
-
 import com.wolfcode.MikrotikHotspot.dto.*;
 import com.wolfcode.MikrotikHotspot.entity.Routers;
 import com.wolfcode.MikrotikHotspot.entity.UserInfo;
@@ -42,16 +41,14 @@ public class MikrotikService {
     private final UserSessionRepository userSessionRepository;
 
 
-    public void connectUser(String ipAddress, String packageType, String macAddress,
+    public void connectUser(String ipAddress, String macAddress, String packageType,
                             String phoneNumber, String mpesaReceiptNumber, String amount, String routerName, String checkoutRequestID) {
+
         try {
             String username = generateUsername(macAddress, phoneNumber);
             String password = generatePassword();
             String profile = mapPackageToProfile(packageType);
             String uptimeLimit = mapPackageToUptime(packageType);
-
-            log.info("User Created: username{} password{} ipAddress{} macAddress{}",
-                    username, password, ipAddress, macAddress);
 
             int intAmount = Integer.parseInt(amount);
             UserInfo userInfo = UserInfo.builder()
@@ -75,7 +72,6 @@ public class MikrotikService {
             Duration sessionLimit = Duration.ofHours(mapPackageToSessionLimit(packageType));
             LocalDateTime sessionStartTime = LocalDateTime.now();
             LocalDateTime sessionEndTime = sessionStartTime.plus(sessionLimit);
-
             UserSession userSession = UserSession.builder()
                     .routerName(routerName)
                     .username(username)
@@ -84,6 +80,52 @@ public class MikrotikService {
                     .build();
             userSessionRepository.save(userSession);
 
+
+        } catch (MikrotikApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void connectUserWithQuery(String ipAddress, String macAddress, String packageType,
+                                     String phoneNumber, String amount, String routerName, String checkoutRequestID, String transactionRefNo) {
+        try {
+            String username = generateUsername(macAddress, phoneNumber);
+            String password = generatePassword();
+            String profile = mapPackageToProfile(packageType);
+            String uptimeLimit = mapPackageToUptime(packageType);
+
+            log.info("User Created: username{} password{} ipAddress{} macAddress{}",
+                    username, password, ipAddress, macAddress);
+
+            int intAmount = Integer.parseInt(amount);
+            UserInfo userInfo = UserInfo.builder()
+                    .checkoutRequestID(checkoutRequestID)
+                    .mpesaReceiptNumber(transactionRefNo)
+                    .phoneNumber(phoneNumber)
+                    .router(routerName)
+                    .macAddress(macAddress)
+                    .ipAddress(ipAddress)
+                    .packageType(packageType)
+                    .amount(intAmount)
+                    .createTime(LocalDateTime.now())
+                    .userName(username)
+                    .password(password)
+                    .build();
+            hotspotUserInfo.save(userInfo);
+
+            mikroTikClient.createHotspotUser(username, password, ipAddress,
+                    macAddress, profile, uptimeLimit, routerName);
+
+            Duration sessionLimit = Duration.ofHours(mapPackageToSessionLimit(packageType));
+            LocalDateTime sessionStartTime = LocalDateTime.now();
+            LocalDateTime sessionEndTime = sessionStartTime.plus(sessionLimit);
+            UserSession userSession = UserSession.builder()
+                    .routerName(routerName)
+                    .username(username)
+                    .sessionStartTime(LocalDateTime.now())
+                    .sessionEndTime(sessionEndTime)
+                    .build();
+            userSessionRepository.save(userSession);
 
         } catch (MikrotikApiException e) {
             e.printStackTrace();
@@ -99,7 +141,6 @@ public class MikrotikService {
                 .username(user.getUserName())
                 .password(user.getPassword())
                 .build();
-
     }
 
     public String generateUsername(String macAddress, String phoneNumber) {
@@ -210,7 +251,6 @@ public class MikrotikService {
                 .sessionEndTime(sessionEndTime)
                 .build();
         userSessionRepository.save(userSession);
-
 
         UserInfo userInfo = UserInfo.builder()
                 .checkoutRequestID(null)
