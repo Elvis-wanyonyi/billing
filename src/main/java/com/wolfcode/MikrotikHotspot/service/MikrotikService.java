@@ -9,7 +9,6 @@ import com.wolfcode.MikrotikHotspot.repository.HotspotUserInfo;
 import com.wolfcode.MikrotikHotspot.repository.RouterRepository;
 import com.wolfcode.MikrotikHotspot.repository.UserSessionRepository;
 import com.wolfcode.MikrotikHotspot.repository.VoucherRepository;
-import jakarta.transaction.Transactional;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

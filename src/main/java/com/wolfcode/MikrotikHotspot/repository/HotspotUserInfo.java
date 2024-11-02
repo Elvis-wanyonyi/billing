@@ -1,7 +1,6 @@
 package com.wolfcode.MikrotikHotspot.repository;
 
 import com.wolfcode.MikrotikHotspot.entity.UserInfo;
-import jakarta.transaction.Transactional;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
