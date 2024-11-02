@@ -9,12 +9,15 @@ import com.wolfcode.MikrotikHotspot.repository.RouterRepository;
 import me.legrange.mikrotik.ApiConnection;
 import me.legrange.mikrotik.ApiConnectionException;
 import me.legrange.mikrotik.MikrotikApiException;
+import me.legrange.mikrotik.ResultListener;
 import org.springframework.stereotype.Component;
 
+import javax.net.ssl.SSLSocketFactory;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Component
 public class MikrotikClient {
@@ -29,13 +32,19 @@ public class MikrotikClient {
 
     public void connectRouter(String routerName) throws MikrotikApiException {
         Routers routerConfig = routerRepository.findByRouterName(routerName);
-
         if (routerConfig == null) {
             throw new MikrotikApiException("Invalid router name: " + routerName);
         }
 
-        connection = ApiConnection.connect(routerConfig.getRouterIPAddress());
-        connection.login(routerConfig.getUsername(), routerConfig.getPassword());
+        try {
+            connection = ApiConnection.connect(SSLSocketFactory.getDefault(),
+                    routerConfig.getRouterIPAddress(),
+                    ApiConnection.DEFAULT_TLS_PORT, ApiConnection.DEFAULT_CONNECTION_TIMEOUT);
+
+            connection.login(routerConfig.getUsername(), routerConfig.getPassword());
+        } catch (MikrotikApiException e) {
+            throw new MikrotikApiException("Error connecting to Mikrotik API", e);
+        }
     }
 
     public void disconnect() throws ApiConnectionException {
@@ -56,7 +65,7 @@ public class MikrotikClient {
         connection.execute(command);
     }
 
-    public void redeemVoucher(String voucherCode,String ipAddress,String macAddress,
+    public void redeemVoucher(String voucherCode, String ipAddress, String macAddress,
                               String profile, String uptimeLimit, String routerName)
             throws MikrotikApiException {
         connectRouter(routerName);
@@ -97,7 +106,7 @@ public class MikrotikClient {
             activeClient.setIpAddress(clientData.get("address")); // IP address
             activeClient.setMacAddress(clientData.get("mac-address")); // MAC address
             activeClient.setUptime(clientData.get("uptime")); // Session uptime
-          //  activeClient.setRxRateTxRate(clientData.get("limit-uptime")); // Session limit (if available)
+            //  activeClient.setRxRateTxRate(clientData.get("limit-uptime")); // Session limit (if available)
             activeClients.add(activeClient);
         }
         return activeClients;
@@ -151,26 +160,37 @@ public class MikrotikClient {
         return healthData;
     }
 
-    public Map<String, Object> getRouterTraffic(String routerInterface, String routerName) throws MikrotikApiException {
+    public CompletableFuture<Map<String, Object>> getRouterTraffic(String routerInterface, String routerName) throws MikrotikApiException {
         connectRouter(routerName);
-        Map<String, Object> trafficData = new HashMap<>();
-        List<Map<String, String>> interfaceResults = connection.execute("/interface/print");
 
-        boolean interfaceFound = false;
-        for (Map<String, String> interfaceData : interfaceResults) {
-            String interfaceName = interfaceData.get("name");
-            if (interfaceName.equals(routerInterface)) {
-                trafficData.put("txBytes", interfaceData.get("tx-byte"));
-                trafficData.put("rxBytes", interfaceData.get("rx-byte"));
-                interfaceFound = true;
-                break;
-            }
-        }
-        if (!interfaceFound) {
-            throw new IllegalArgumentException("Invalid router interface: " + routerInterface);
-        }
-        System.out.println(trafficData);
-        return trafficData;
+        CompletableFuture<Map<String, Object>> future = new CompletableFuture<>();
+
+        connection.execute(
+                "/interface/monitor-traffic interface=" + routerInterface + " once",
+                new ResultListener() {
+
+                    @Override
+                    public void receive(Map<String, String> result) {
+                        System.out.println("Traffic Data: " + result);
+
+                        // Convert result to Map<String, Object> if necessary
+                        Map<String, Object> trafficData = new HashMap<>(result);
+                        future.complete(trafficData); // Complete future with data
+                    }
+
+                    @Override
+                    public void error(MikrotikApiException e) {
+                        future.completeExceptionally(e);
+                    }
+
+                    @Override
+                    public void completed() {
+                        System.out.println("Asynchronous command has finished");
+                    }
+                }
+        );
+
+        return future;
     }
 
     public Map<String, String> getRouterSystemAlerts(String routerName) throws MikrotikApiException {
@@ -246,7 +266,7 @@ public class MikrotikClient {
             if (users.isEmpty()) {
                 throw new MikrotikApiException("User not found: " + username);
             }
-            String userId = users.get(0).get(".id");
+            String userId = users.getFirst().get(".id");
 
             String removeCommand = "/ip/hotspot/user/remove .id=" + userId;
             connection.execute(removeCommand);

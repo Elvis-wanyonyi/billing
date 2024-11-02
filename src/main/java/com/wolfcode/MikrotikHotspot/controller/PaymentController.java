@@ -93,14 +93,16 @@ public class PaymentController {
                 paymentSession.setStatus(Status.CONFIRMED);
                 paymentSessionRepository.save(paymentSession);
 
-                tikController.connectUserWithQuery(checkoutRequestId, paymentSession.getIp(), paymentSession.getMac(),
+                UserCredentials userCredentials = tikController.connectUserWithQuery(checkoutRequestId,
+                        paymentSession.getIp(),
+                        paymentSession.getMac(),
                         paymentSession.getPackageType(), paymentSession.getRouterName(),
                         paymentSession.getPhoneNumber(), paymentSession.getAmount(), transactionRefNo);
 
                 log.info("Transaction Details -> Phone: {}, Amount: {}", paymentSession.getPhoneNumber(),
                         paymentSession.getAmount());
 
-                return ResponseEntity.ok(stkQueryResponse);//user details
+                return ResponseEntity.ok(userCredentials);//user details
             } else {
                 log.error("STK Query failed or returned invalid response.");
                 paymentSession.setStatus(Status.FAILED);

@@ -27,10 +27,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class MikrotikService {
 
@@ -80,14 +80,13 @@ public class MikrotikService {
                     .build();
             userSessionRepository.save(userSession);
 
-
         } catch (MikrotikApiException e) {
             e.printStackTrace();
         }
     }
 
-    public void connectUserWithQuery(String ipAddress, String macAddress, String packageType,
-                                     String phoneNumber, String amount, String routerName, String checkoutRequestID, String transactionRefNo) {
+    public UserCredentials connectUserWithQuery(String ipAddress, String macAddress, String packageType,
+                                                String phoneNumber, String amount, String routerName, String checkoutRequestID, String transactionRefNo) {
         try {
             String username = generateUsername(macAddress, phoneNumber);
             String password = generatePassword();
@@ -127,9 +126,14 @@ public class MikrotikService {
                     .build();
             userSessionRepository.save(userSession);
 
+            return UserCredentials.builder()
+                    .username(username)
+                    .password(password)
+                    .build();
         } catch (MikrotikApiException e) {
             e.printStackTrace();
         }
+        return null;
     }
 
     public UserCredentials getUserCredentials(String checkoutRequestID) {
@@ -315,7 +319,7 @@ public class MikrotikService {
         return mikroTikClient.getRouterHealth(routerName);
     }
 
-    public Map<String, Object> getRouterTraffic(String routerInterface, String routerName) throws MikrotikApiException {
+    public CompletableFuture<Map<String, Object>> getRouterTraffic(String routerInterface, String routerName) throws MikrotikApiException {
         return mikroTikClient.getRouterTraffic(routerInterface, routerName);
     }
 

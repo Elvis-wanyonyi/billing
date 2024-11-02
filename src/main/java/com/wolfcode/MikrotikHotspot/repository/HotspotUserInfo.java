@@ -13,7 +13,6 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 @Repository
-@Transactional
 public interface HotspotUserInfo extends JpaRepository<UserInfo, Long> {
 
     UserInfo findByMpesaReceiptNumberIgnoreCase(String code);

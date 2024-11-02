@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/hotspot")
@@ -44,15 +45,13 @@ public class TikController {
     }
 
     @PostMapping("/connect-query")
-    public String connectUserWithQuery( String checkoutRequestID, @RequestParam String ipAddress, @RequestParam String macAddress,
-                                       @RequestParam String packageType, @RequestParam String routerName,
-                                       String phoneNumber, String amount, String transactionRefNo) {
+    public UserCredentials connectUserWithQuery(String checkoutRequestID, @RequestParam String ipAddress, @RequestParam String macAddress,
+                                                @RequestParam String packageType, @RequestParam String routerName,
+                                                String phoneNumber, String amount, String transactionRefNo) {
         try {
-            mikrotikService.connectUserWithQuery(ipAddress, macAddress, packageType,
-                    phoneNumber, amount, routerName, checkoutRequestID,transactionRefNo);
+            return mikrotikService.connectUserWithQuery(ipAddress, macAddress, packageType,
+                    phoneNumber, amount, routerName, checkoutRequestID, transactionRefNo);
 
-            System.out.println("Connecting user: " + phoneNumber);
-            return "Connecting user....";
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -136,22 +135,14 @@ public class TikController {
         return ResponseEntity.ok(healthData);
     }
 
-    @GetMapping("/{routerName}/traffic/{routerInterface}")
-    public ResponseEntity<Map<String, Object>> getRouterTraffic(@PathVariable String routerInterface,
-                                                                @PathVariable String routerName) {
-        try {
-            Map<String, Object> trafficData = mikrotikService.getRouterTraffic(routerInterface, routerName);
-            return ResponseEntity.ok(trafficData);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        } catch (MikrotikApiException e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "Error fetching traffic data from router."));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("error", "An unexpected error occurred."));
-        }
+    @GetMapping("/monitor-traffic")
+    public CompletableFuture<Map<String, Object>> monitorTraffic(
+            @RequestParam String routerInterface,
+            @RequestParam String routerName) throws MikrotikApiException {
+
+        return mikrotikService.getRouterTraffic(routerInterface, routerName);
     }
+
 
     @GetMapping("/alerts/{routerName}")
     public ResponseEntity<Map<String, String>> getRouterSystemAlerts(@PathVariable String routerName) throws MikrotikApiException {
